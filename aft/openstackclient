@@ -1,0 +1,68 @@
+#
+# Create virtual env
+#
+rm -rf .openstackclient
+virtualenv .openstackclient
+source ./.openstackclient/bin/activate
+
+#
+# Clone test repo
+#
+rm -rf python-openstackclient
+git clone https://github.com/openstack/python-openstackclient.git
+cd python-openstackclient
+
+#
+# Create clouds.yaml
+#
+YAML=clouds.yaml
+cat >${YAML} <<!
+clouds:
+  overcloud:
+    auth_type: "v2password"
+    cacert: "$OS_CACERT"
+    auth:
+      auth_url: "$OS_AUTH_URL"
+      password: "$OS_PASSWORD"
+      project_name: "$OS_TENANT_NAME"
+      username: "$OS_USERNAME"
+!
+echo '---------------------------------------------------------'
+cat ${YAML}
+echo '---------------------------------------------------------'
+
+#
+# Set up env
+#
+export OS_CLOUD=overcloud
+export no_proxy=$(echo ${OS_AUTH_URL} | sed -e 's,http.*//,,' -e 's,:.*,,')
+unset OS_PASSWORD
+unset OS_AUTH_URL
+unset OS_USERNAME
+unset OS_TENANT_NAME
+unset OS_CACERT
+unset OS_NO_CACHE
+unset OS_CLOUDNAME
+
+#
+# Get latest release
+#
+pip install python-openstackclient
+LATEST_VERSION=$(pip list | grep python-openstackclient | grep python-openstackclient | sed -e 's/.*(//' -e 's/)//')
+git checkout $LATEST_VERSION
+python setup.py develop
+
+#
+# Remove tests we aren't supporting
+#
+rm -rf functional/tests/identity/v3/ # v3 identity not supported
+
+#
+# Run tests
+#
+pip install tox
+tox -e functional
+# Command for individual test
+# tox -e functional -- --regex functional.tests.compute.v2.test_keypair
+
+exit 0

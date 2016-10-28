@@ -1,0 +1,71 @@
+#!/bin/bash -ex
+
+#
+# Create virtual env
+#
+rm -rf .openstacksdk
+virtualenv .openstacksdk
+source ./.openstacksdk/bin/activate
+
+#
+# Clone test repo
+#
+rm -rf python-openstacksdk
+git clone https://github.com/stackforge/python-openstacksdk.git
+cd python-openstacksdk
+
+#
+# Hacks for now
+#
+rm -rf openstack/tests/functional/orchestration/v1/test_stack.py
+sed -i -e 's/linger=15/linger=40/' openstack/tests/functional/base.py
+
+#
+# Create clouds.yaml
+#
+YAML=clouds.yaml
+cat >${YAML} <<!
+clouds:
+  overcloud:
+    auth_type: "v2password"
+    cacert: "$OS_CACERT"
+    auth:
+      auth_url: "$OS_AUTH_URL"
+      password: "$OS_PASSWORD"
+      project_name: "$OS_TENANT_NAME"
+      username: "$OS_USERNAME"
+!
+echo '---------------------------------------------------------'
+cat ${YAML}
+echo '---------------------------------------------------------'
+
+#
+# Set up env
+#
+export OS_CLOUD=overcloud
+export no_proxy=$(echo ${OS_AUTH_URL} | sed -e 's,http.*//,,' -e 's,:.*,,')
+unset OS_PASSWORD
+unset OS_AUTH_URL
+unset OS_USERNAME
+unset OS_TENANT_NAME
+unset OS_CACERT
+unset OS_NO_CACHE
+unset OS_CLOUDNAME
+
+#
+# Get latest release
+#
+#pip install python-openstacksdk
+#LATEST_VERSION=$(pip list | grep python-openstacksdk | grep python-openstacksdk | sed -e 's/.*(//' -e 's/)//')
+#git checkout $LATEST_VERSION
+python setup.py develop
+
+#
+# Run tests
+#
+pip install tox
+tox -e functional
+# Command for individual test
+# tox -e functional -- --regex functional.tests.compute.v2.test_keypair
+
+exit 0

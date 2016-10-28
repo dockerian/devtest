@@ -1,0 +1,45 @@
+<settings>
+    <profiles>
+        <profile>
+            <id>sonar</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <!-- Example for MySQL-->
+                <sonar.jdbc.url>
+                  jdbc:mysql://distillery.fc.hp.com:3306/sonar?
+                </sonar.jdbc.url>
+                <sonar.jdbc.username>sonar</sonar.jdbc.username>
+                <sonar.jdbc.password>sonar</sonar.jdbc.password>
+
+                <!-- Optional URL to server. Default value is http://localhost:9000 -->
+                <sonar.host.url>
+                  http://distillery.fc.hp.com:9000
+                </sonar.host.url>
+
+                <java.version>1.7</java.version>
+                <jacoco.version>0.7.4.201502262128</jacoco.version>
+                <maven.compiler.version>3.3</maven.compiler.version>
+                <surefire.version>2.18</surefire.version>
+                <testng.version>6.8.8</testng.version>
+            </properties>
+        </profile>
+     </profiles>
+     <proxies>
+         <proxy>
+             <active>true</active>
+             <protocol>http</protocol>
+             <host>web-proxy.useast.hpcloud.net</host>
+             <port>8080</port>
+             <nonProxyHosts>localhost|127.0.0.1|distillery</nonProxyHosts>
+         </proxy>
+         <proxy>
+             <active>true</active>
+             <protocol>https</protocol>
+             <host>web-proxy.useast.hpcloud.net</host>
+             <port>8080</port>
+             <nonProxyHosts>localhost|127.0.0.1|distillery</nonProxyHosts>
+         </proxy>
+     </proxies>
+</settings>
