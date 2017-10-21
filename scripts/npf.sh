@@ -177,7 +177,7 @@ function change_by_profile() {
 
   exiftool -F -q -s \
   -overwrite_original_in_place \
-  -Artist="${_AuthorFullName}" \
+  -Artist="${_Author}" \
   -AuthorsPosition="${_AuthorTitle}" \
   -BaseURL="${_BaseURL}" \
   -By-line="${_AuthorFullName}" \
@@ -187,7 +187,7 @@ function change_by_profile() {
   -CopyrightNotice="${copyright}" \
   -CopyrightFlag=true \
   -Contact="${_CreatorAddress}" \
-  -Creator="${_Author}" \
+  -Creator="${_AuthorFullName}" \
   -CreatorAddress="${_CreatorAddress}" \
   -CreatorCity="${_CreatorCity}" \
   -CreatorCountry="${_CreatorCountry}" \
@@ -469,6 +469,14 @@ function check_geo_data() {
   check_exif_data "$1"
   if [[ "${exif_glat}" == "" ]] || [[ "${exif_glat}" == "null" ]]; then return; fi
   if [[ "${exif_glon}" == "" ]] || [[ "${exif_glon}" == "null" ]]; then return; fi
+
+  if [[ "${exif_gtag}" == "0,0" ]]; then
+    log_info "clearing GPS data: ${exif_gtag} [$1]"
+    exiftool -F -q -s \
+    -overwrite_original_in_place \
+    -GPSLatitude="" -GPSLongitude="" "$1"
+    return
+  fi
 
   log_info "using GPS data: ${exif_gtag}"
 
