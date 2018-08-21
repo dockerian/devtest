@@ -30,6 +30,7 @@ export PATH="$GOPATH/bin:$PATH" # Add golang
 alias a="alias|cut -d' ' -f 2- "
 alias apache='httpd -v; sudo apachectl '
 alias bashrc='source ~/.bash_profile; title ${PWD##*/};'
+alias brewery='brew update && brew upgrade && brew cleanup'
 alias bu='brew upgrade; brew update --debug --verbose'
 alias cdp='cd -P .'
 alias clean='find . -name \*.pyc -o -name .DS_Store -delete'
@@ -44,11 +45,13 @@ alias gbd='git branch -d '  # delete branch locally
 alias gbdo='git push origin --delete '  # delete branch on origin
 alias gbv="git branch -v "
 alias gco="git checkout "
-alias gfv="git fetch -v --all --prune "
+alias gfv="git fetch -v --all --prune ; git branch -v"
 alias glg="git log --graph --pretty=format:'%C(magenta)%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative"
-alias gpum='git pull upstream master'
+alias gpum='git checkout master && git pull upstream master'
+alias gpumgp='git checkout master && git pull upstream master && git push'
 alias grm='git rebase master'
-alias grmgpf='git rebase master; git push --force'
+alias grmgp='git rebase master && git push'
+alias grmgpf='git rebase master && git push --force'
 alias grv='git remote -v'
 alias gst='git status'
 alias gotraining='goto gotraining'
@@ -57,7 +60,8 @@ alias gopath='cd -P ${GOPATH} && pwd'
 alias ip='echo $(ipconfig getifaddr en0) $(dig +short myip.opendns.com @resolver1.opendns.com)'
 alias ipy='ipython'
 alias ll='ls -al'
-alias lll='ls -al --time-style=full-iso'
+alias lll='ls -al -T'  # --time-style=full-iso
+alias llt='ls -al -rt'
 alias lg='dscl . list /groups | grep -v "_"'
 alias lgv='dscacheutil -q group' # -a name staff
 alias lsofi='lsof -i -n -P'
@@ -65,10 +69,12 @@ alias lu='dscl . list /users | grep -v "_"'
 alias luv='dscacheutil -q user' # -a name $USER
 alias ml="make -qp|awk -F':' '/^[a-zA-Z0-9][^\$#\/\t=]*:([^=]|\$)/ {split(\$1,A,/ /);for(i in A)print A[i]}'|sort"
 alias path='echo $PATH|tr ":" "\n"'
-alias server='python -m SimpleHTTPServer'
+
+alias pyserver='python -m SimpleHTTPServer'
 alias setp='(set -o posix; set|grep -v _xspec)'
 alias showhidden='defaults write com.apple.finder AppleShowAllFiles YES; killall Finder /System/Library/CoreServices/Finder.app'
 alias si='echo -e $(for k in ~/.ssh/*.pub;do echo -e "\\\n$(ssh-keygen -E md5 -lf $k) - $k";done)|sort -k 3; echo;echo "--- Added identities ---"; ssh-add -E md5 -l|sort -k 3'
+alias venv='source .venv/bin/activate'
 alias ver='echo -e "$(uname -a)"; echo ""; echo -e "$(bash --version)"'
 alias t='title ${PWD##*/}'
 
@@ -85,12 +91,16 @@ alias dm="docker-machine "
 alias dme="docker-machine env default"
 alias dmip="docker-machine ip default"
 alias dclean='docker kill $(docker ps -aq); docker rm -f -v $(docker ps -aq); docker rmi -f $(docker images -aq)'
-alias di="docker images -a"
+alias di="docker images|sort|grep -v none"
+alias dia="docker images -a"
 alias didangling="docker images -a --filter dangling=true"
 alias dlogs="docker logs -ft "
 alias dps="docker ps -a"
 alias drm="docker rm -f -v"
-alias drmi="docker rmi -f "
+alias drma='docker rm -f -v $(docker ps -aq)'
+alias drme='docker rm -f -v $(docker ps -aq --filter "status=exited")'
+alias drmi='docker rmi -f '
+alias dvrm='docker volume rm -f $(docker volume ls -q -f dangling=true)'
 alias nr="npm run "
 
 
@@ -109,6 +119,7 @@ function main() {
 # function: Output a relative path to absolute path
 ############################################################
 function abspath() {
+  set +u
   local thePath
   if [[ ! "$1" =~ ^/ ]]; then thePath="$PWD/$1"; else thePath="$1"; fi
   echo "$thePath"|(
@@ -130,6 +141,7 @@ function abspath() {
   done
   echo /"${outp[*]}"
   )
+  set -u
 }
 
 ############################################################
@@ -139,6 +151,26 @@ function addtopath() {
     if [ -d "$1" ] && [[ ! "$PATH" =~ (^|:)"${1}"(:|$) ]]; then
       export PATH+=:$1
     fi
+}
+
+############################################################
+# function: docker inspect extract config in docker image
+############################################################
+function dex() {
+  docker history --no-trunc "$1" | \
+  sed -n -e 's,.*/bin/sh -c #(nop) \(MAINTAINER .[^ ]\) 0 B,\1,p' | \
+  head -1
+  docker inspect --format='{{range $e := .Config.Env}}
+  ENV {{$e}}
+  {{end}}{{range $e,$v := .Config.ExposedPorts}}
+  EXPOSE {{$e}}
+  {{end}}{{range $e,$v := .Config.Volumes}}
+  VOLUME {{$e}}
+  {{end}}{{with .Config.User}}USER {{.}}{{end}}
+  {{with .Config.WorkingDir}}WORKDIR {{.}}{{end}}
+  {{with .Config.Entrypoint}}ENTRYPOINT {{json .}}{{end}}
+  {{with .Config.Cmd}}CMD {{json .}}{{end}}
+  {{with .Config.OnBuild}}ONBUILD {{json .}}{{end}}' "$1"
 }
 
 ############################################################
@@ -285,7 +317,7 @@ function gbd-all() {
 # function: Find a directory in $GOPATH/src and change to it
 ############################################################
 function goto() {
-  cd $(find $GOPATH/src -type d -name "$1" 2>/dev/null | head -n 1)
+  cd $(find $GOPATH/src -type d -name "$1" 2>/dev/null | head -n 1); pwd
 }
 
 ############################################################
