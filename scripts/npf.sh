@@ -118,6 +118,10 @@ function main() {
     do_offset_timezone $2 && do_original_date && clean_up; return
   fi
 
+  if [[ "$1" == "-v" ]]; then
+    do_display "$2"; return
+  fi
+
   if [[ "$@" =~ restore ]]; then
     do_restore; return
   fi
@@ -376,7 +380,8 @@ function check_camera_dslr_file() {
 
   check_exif_date "$1"
   exif_desc="$(exiftool -j "$1"|jq -r .[0].ImageDescription)"
-  date_form="$(echo ${exif_date}|awk 'BEGIN {FS="[: .\"]"}{OFS="_"}{print $1$2$3,$4$5,$6 substr(int($7),0,1)}')"
+  # EXIF date format: 2018:10:03 08:29:36-07:00
+  date_form="$(echo ${exif_date}|awk 'BEGIN {FS="[\\-: .\"]"}{OFS="_"}{print $1$2$3,$4$5,$6 substr(int($7),0,1)}')"
   file_date="$(exiftool -j "$1"|jq -r .[0].FileModifyDate)"
   date_name="${date_form}"
   name_date="${exif_date}"
@@ -443,6 +448,8 @@ function check_exif_date() {
       break  # since successfully extracted the date from EXIF data
     fi
   done
+
+  log_info "EXIF date: ${exif_date} [$1]"
 
   if [[ "${exif_date}" == "null" ]]; then exif_date=""; fi
   if [[ "${exif_date}" != "" ]]; then
@@ -618,6 +625,12 @@ function do_check_date() {
       check_exif_date "$f"
     fi
   done
+}
+
+# print EXIF data
+function do_display() {
+  if [[ ! -e "$1" ]]; then return; fi
+  exiftool -n -s "$1"
 }
 
 # install the script to a path (which dirname must be in $PATH)
