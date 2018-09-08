@@ -71,7 +71,7 @@ prefer_exif="${PREFER_EXIF:-no}"   # default not to enforce EXIF datetime stamp
 rename_test="${RENAME_TEST:-yes}"  # run as a test without executing `mv`
 rename_keep="${RENAME_KEEP:-no}"   # add date/time but keep original name
 rename_only="${RENAME_ONLY:-no}"   # default NOT to rename only
-seqnum_last="${SEQNUM_LAST:--1}"   # the last sequence number per date
+seqnum_last="${SEQNUM_LAST:--0}"   # the last sequence number per date
 script_user="${SCRIPT_USER:-Jason Zhu}"  # set the caption writer
 
 
@@ -133,6 +133,7 @@ function main() {
   check_camera_IMG_files
   check_camera_images_by_pattern
   check_camera_pt_images
+  check_camera_vid
 
   clean_up
 }
@@ -405,6 +406,11 @@ function check_camera_pt_images() {
 
     do_rename_file "$f"
   done
+}
+
+# check and rename vid*.mp4 video files
+function check_camera_vid() {
+  for vid_file in VID*.mp4 ; do mv ${vid_file} ${vid_file/VID_/}; done
 }
 
 # check_depends() func: verifies if prerequisites exists
