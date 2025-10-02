@@ -78,9 +78,15 @@ script_user="${SCRIPT_USER:-Jason Zhu}"  # set the caption writer
 function main() {
   shopt -s nocasematch
   # such regex search prevents from any other argument starts with letter 'h'
-  if [[ "$@" =~ (help|-h|/h|-\?|/\?) ]]; then
-    usage && return
-  fi
+  for p in "$@"; do
+    if [[ "$p" =~ [/-]{1,2}([hH]|\?) ]]; then
+      usage && return
+    elif [[ "$p" =~ [/-]{0,2}([hH]elp|HELP) ]]; then
+      usage && return
+    elif [[ "$p" =~ [/-]exif ]]; then
+      prefer_exif="yes"
+    fi
+  done
 
   check_depends $@
 
@@ -89,8 +95,6 @@ function main() {
   fi
 
   change_jpeg_extension
-
-  if [[ "$p" =~ exif ]]; then prefer_exif="yes"; fi
 
   if [[ "$1" == "-c" ]] || [[ "$1" =~ (-clean) ]]; then
     clean_up; return
@@ -111,11 +115,15 @@ function main() {
   fi
 
   if [[ "$1" =~ "-ts" ]] || [[ "$1" =~ "-timeshift" ]]; then
-    do_offset_datetime "${2// /.}" && do_original_date && clean_up; return
+    do_offset_datetime "${2// /.}" && \
+    do_original_date && \
+    clean_up; return
   fi
 
   if [[ "$1" =~ "-tz" ]] || [[ "$1" =~ "-timezone" ]]; then
-    do_offset_timezone $2 && do_original_date && clean_up; return
+    do_offset_timezone $2 && \
+    do_original_date && \
+    clean_up; return
   fi
 
   if [[ "$1" == "-v" ]]; then
@@ -363,6 +371,7 @@ function check_camera_IMG_files() {
 function check_camera_images_by_pattern() {
   time_seqn=0
   prev_name=""
+  if [[ ! -e ${camera_file}*.jpg ]]; then return; fi
   log_info "checking ${camera_file}*.JPG|jpg files [in $PWD] ..."
 
   if ! ls ${camera_file}*.jpg 1>/dev/null 2>&1 ; then return; fi
@@ -410,6 +419,7 @@ function check_camera_pt_images() {
 
 # check and rename vid*.mp4 video files
 function check_camera_vid() {
+  if [[ ! -e VID*.mp4 ]]; then return; fi
   for vid_file in VID*.mp4 ; do mv ${vid_file} ${vid_file/VID_/}; done
 }
 
@@ -749,6 +759,8 @@ function do_rating() {
 #     ${name_secf}: the calculated 'nnn' part
 function do_rename_file() {
   if [[ ! -e "$1" ]]; then return; fi
+  local _orgf_="${1%.*}"
+  local _secf_=""
 
   # check if datetime stamp matches in EXIF
   if [[ "${date_form:0:16}" != "${date_name:0:16}" ]]; then
@@ -759,7 +771,7 @@ function do_rename_file() {
   log_info "processing $1 ..."
   # before renaming, update with profile and modified date
   if [[ "${#date_name}" == "17" ]] && [[ "${rename_only}" != "yes" ]]; then
-    check_geo_data "$1"
+    # check_geo_data "$1" # now Google API requires key
     change_by_profile "$1"
 
     log_info "updating '$1' with -FileModifyDate='${name_date}'"
@@ -784,7 +796,7 @@ function do_rename_file() {
       time_seqn=$((${time_seqn}+1))
     else
       prev_name="${date_form:0:16}"
-      time_seqn=1
+      time_seqn=0
     fi
     log_debug "Current sequance number: ${time_seqn} on [${name_secf}]"
     for n in {0..100}; do
@@ -805,6 +817,22 @@ function do_rename_file() {
     log_info "mv $1 => ${newimg_name}.jpg"
     mv "$1" "${newimg_name}.jpg"
   fi
+  # processing extra files taken at the same second
+  for n in {1..30}; do
+    if [[ -e ${_orgf_}_$n.jpg ]]; then
+      for i in {0..99}; do
+        _secf_="$((10#${name_secf} + $n + $i))"
+        _newf_=`printf "%s%03d" ${date_form:0:14} ${_secf_}`
+        if [[ ! -e "${_newf_}".jpg ]]; then break; fi
+      done
+      if [[ "${rename_test}" == "yes" ]]; then
+        log_info "renaming ${_orgf_}_$n.jpg => ${_newf_}.jpg"
+      else
+        log_info "mv ${_orgf_}_$n.jpg => ${_newf_}.jpg"
+        mv "${_orgf_}_$n.jpg" "${_newf_}.jpg"
+      fi
+    fi
+  done
 }
 
 # restore original files
@@ -885,16 +913,9 @@ function usage() {
   echo ""
   echo "USAGE: ${script_file} --help"
   echo ""
-  local headers="0"
-  # echo "$(cat ${script_path} | grep -e '^##')"
+  # echo "$(cat ${script_path} | grep -E '^#.+#$')"
   while IFS='' read -r line || [[ -n "${line}" ]]; do
-    if [[ "${headers}" == "0" ]] && [[ "${line}" =~ (^#[#=-\\*]{59}) ]]; then
-      headers="1"
-      echo "${line}"
-    elif [[ "${headers}" == "1" ]] && [[ "${line}" =~ (^#[#=-\\*]{59}) ]]; then
-      headers="0"
-      echo "${line}"
-    elif [[ "${headers}" == "1" ]]; then
+    if [[ "${line}" =~ ^#.+#$ ]]; then
       echo "${line}"
     fi
   done < "${script_path}"
